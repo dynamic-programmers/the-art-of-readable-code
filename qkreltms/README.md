@@ -38,7 +38,60 @@
             }
             // 두 가지 중 어떤 것을 써도 무방하나, 프로젝트의 일관성을 따라가는 것이 더 중요하다.
           ```
+1. 설명 변수를 만든다.
+```py
+if line.split(':')[0].strip() == 'root'
 
+# 위를 아래로 변경한다.
+
+username = line.split(':')[0].strip()
+if username == "root":
+```
+1. 요약 변수를 사용한다.
+```js
+if (request.user.id == document.owner_id) { }
+if (request.user.id != document.owner_id) { }
+
+// 위를 아래와 같이 바꾼다.
+
+const user_owns_document = request.user.id == document.owner_id
+
+if (user_owns_document) { ... }
+if (!user_owns_document) { ... }
+```
+
+1. 드모르간의 법칙 사용해 조건문 간단하게 하기
+```js
+// 드모르간의 법칙
+// (A U B)^c = A^c U B^c 
+
+!(a || b || c) = !a && !b && !c
+!(a && b && c) = !a || !b || !c
+
+!(a && !b) = !a || b
+```
+
+1. 중복되는 코드를 줄인다.
+```js
+var ans = 10
+if (ans >= 10) {
+    ans += 1+1 + 2+2 + 3+3
+} else {
+    ans += 1+1 + 2+2
+}
+
+// 위의 코드를 아래와 같이 만든다.
+
+var ans = 10
+var a = 1+1
+var b = 2+2
+var c = 3+3
+if (ans >= 10) {
+    ans += a+b+c
+} else {
+    ans += a+b
+}
+```
 ## 명명법
 1. 변수 이름에 정보를 구체적으로 담아라(--run_locally => --extra_logging)
 1. 꼭 그래야 하는 이유가 없다면 보편적인 변수 사용 피하기(보편적인 변수 명이 오히려 좋을 때도 있음)
