@@ -3,6 +3,8 @@
 
 1. 몇 줄 더 쓰는게 오히려 가독성이 좋을 수있다
 
+1. 줄 수를 최소화하는 일보다 다른 사람이 코드 읽는 시간을 최소화하는게 더 중요하다.
+
 1. 단항연산자보다 if문 여러줄 작성
 
 1. 코드는 항상 다른 사람이 보기 편하도록 작성하라
@@ -72,7 +74,7 @@ begin       end  (끝을 제외함)
 1. get*()의 함수명을 사용시 간단한 계산만 한다. 오래걸리는 계산은 compute*() 사용 권장
 
 ## 주석 쓰는 법
-1. 코드를 읽고 빠르게 유추할 수 있는 내용은 주석으로 달지 말라
+1. 코드를 읽고 빠르게 유추할 수 있는 내용은 주석으로 달지 말라(단, 사람은 주석을 보고 더 빠르게 이해한다. 적절하게 사용하는게 좋을 지도...)
     - 다음의 코드는 가치가 없다.
     - ```js
         // classA를 생성한다.
@@ -96,4 +98,76 @@ begin       end  (끝을 제외함)
 
 ## 읽기 쉬운 제어문 만들기
 1. 어순과 일치하는 것이 더 읽기 쉽다.(왼쪽 유동적인 값, 오른쪽 고정적인 값) if(10 <= length) 보다 if(length >= 10) 가 더 읽기 쉽다.
-1. 
+1. 조건문은 긍정을 다루는게 더 잘 읽힌다.
+```js
+if (true) {
+
+} else { }
+```
+1. 간단한 것을 먼저 처리하라.(한 화면에서 if와 else 구문을 나타낼 수도 있다.)
+1. 더 흥미롭고 확실한 것을 먼저 다루어라.
+1. 간단한 조건문은 삼항연산자를 사용하라 그렇지 않다면 삼항연산자가 더 복잡할 수 있으므로 if, else 사용 권장
+1. do while루프를 피하라(조건이 아래에 명시되어있어 코드를 두 번 읽기 때문에)
+1. 중첩을 최소화하기
+```js
+if (user_result == SUCCESS) {
+    if (permission_result != SUCCESS) {
+        reply.WriteErrors("erro reding permission");
+        reply.Done()
+        return;
+    }
+    reply.WriteErrors("")
+} else {
+    reply.WriteErrors(user_result)
+}
+reply.Done()
+
+// 함수 중간에서 반환하여 중첩을 제거한다.
+// 아래와 같이 바꿀 수 있다.
+if (user_result != SUCCESS) {
+    reply.WriteErros(user_result)
+    reply.Done()
+    return
+}
+
+if (permission_result != SUCCESS) {
+    reply.WriteErrors(permission_result)
+    reply.Done()
+    return
+}
+reply.WriteErrors("")
+reply.Done()
+
+// 루프 내부에 있는 중첩 제거하기
+for (int i = 0; i<results.size(); i++) {
+    if (results[i] != NULL) {
+        non_null_count++
+        if (results[i]->name != "") {
+            cout << "Considering candidate..." << endl;
+        }
+    }
+}
+
+// 아래와 같이 바꿀 수 있다.
+for (int i = 0; i<results.size(); i++) {
+    if (results[i] == NULL) continue
+    non_null_count++
+
+    if (results[i]->name == "") continue
+    cout << "Considering candidate..." << endl;
+}
+```
+1. 실행흐름을 따라올 수 있게 코드를 작성하는 비율을 높인다. 
+```
+아래의 기능을 사용할 시 흐름을 따라가기 힘들어진다. 이러한 기능들이 차지하는 비율이 너무 높지 않아야한다.
+
+스레딩: 어느 코드가 언제 실행되는지 불분명하다.
+
+시그널/인터럽트 핸들러: 어떤 코드가 어떤 시점에 실행될지 모른다,
+
+예외: 예외처리가 여러 함수 호출을 거치면서 실행될수있다. 
+
+함수 포인터 & 익명함수: 실행 함수가 런타임에 결정되기 때문에 예측하기 어렵다.
+
+가상 메소드: object.virtualMethod()는 알려지지 않은 하위클래스의 코드를 호출할지도 모른다.
+```
