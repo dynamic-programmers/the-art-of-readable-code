@@ -329,3 +329,56 @@ for (int i = 0; i<results.size(); i++) {
 
 가상 메소드: object.virtualMethod()는 알려지지 않은 하위클래스의 코드를 호출할지도 모른다.
 ```
+
+## 10장 상관없는 하위문제 추출하기
+큰 흐름과 관계가 적은 하위문제를 적극적으로 발견해서 추출하라.
+
+1. 스스로에게 질문하라 "상위수준에서 본 이 코드의 목적은 무엇인가?"
+2. 코드의 모든 줄에 질문을 던져라. "이 코드의 목적은? 혹은 목적을 위해 필요하지만 목적 자체와 직접적으로 상관없는 하위문제를 해결하는가?"
+3. 만약 상당히 원래의 목적과 직접적으로 관련되지 않은 하위문제를 해결하는 코드 분량이 많으면, 이를 추출해서 별도의 함수로 만든다.
+
+예제 코드
+```js
+// 다음 코드의 상위수준 목적은 주어진 점과 가장 가까운 장소를 찾는 것이다.
+var findClosestLocation = function (lat, lng, array) {
+    var closest;
+    var closest_dist = Number.MAX_VALUE;
+    for (var i = 0; i < array.length; i+=1) {
+        // 두 점 모두를 라디안으로 변환한다.
+        var lat_rad = radians(lat);
+        ...
+
+        // '코사인의 특별법칙' 공식을 사용한다. 
+        var dist = Math.acos(Math.sin(...) ... )
+
+        if (dist < closest_dist) {
+            closest = array[i];
+            closest_dist = dist;
+        }
+    }
+    return closest;
+}
+
+// 루프의 내부에 있는 코드는 대부분 주요 목적과 직접 상관없는 하위문제를 다룬다.
+// 두 개의 위도/경도 점 사이의 거리 계산 로직을 분리한다.
+
+var findClosestLocation = function (lat, lng, array) {
+    var closest;
+    var closest_dist = Number.MAX_VALUE;
+    for (var i = 0; i < array.length; i+=1) {
+        var dist = spherical_distance(lat, lng, array[i].latitude, array[i].longtitude);
+
+        if (dist < closest_dist) {
+            closest = array[i];
+            closest_dist = dist;
+        }
+    }
+    return closest;
+}
+
+// 코드를 읽는 사람은 밀도 높은 기하 공식에 방해받지 않고 상위수준의 목적에 집중할 수 있으니 전반적으로 코드의 가독성이 높아졌다.
+
+// 추가적으로 spherical_distance()는 독립적인 테스트와 재사용에 더 용이하다.
+```
+
+4. 단, 지나친 수준으로 코드를 더 잘게 쪼갠다면 오히려 가독성을 해칠수 있다.
