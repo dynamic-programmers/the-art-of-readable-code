@@ -41,7 +41,7 @@
 
 ## 코드 분리하기
 
-1. 설명 변수를 만든다.
+1. 설명 변수를 만든다.(단, 아래의 "불필요한 임시 변수" 항목을 기억하라)
 ```py
 if line.split(':')[0].strip() == 'root'
 
@@ -382,3 +382,123 @@ var findClosestLocation = function (lat, lng, array) {
 ```
 
 4. 단, 지나친 수준으로 코드를 더 잘게 쪼갠다면 오히려 가독성을 해칠수 있다.
+
+## 11장 코드 재작성하기
+1. 한 번에 하나의 작업만 수행하게 코드를 구성해야 한다.
+    - 한 번에 여러 가지 일을 수행하는 코드는 이해하기 어렵다.
+    - 코드가 수행하는 모든 작업(객체가 정상적으로 존재하는지 확인, 트리 안에 있는 모든 노드 방문, 등)을 나열한다. 
+    - 이러한 작업을 분리하여 서로 다른 함수 혹은 논리적으로 구분되는 영역에 놓을 수 있는 코드를 작성하라
+
+```js
+// 추천을 누르면 현재 점수 +1
+// 반대는 현재 점수 -1을 진행하는 코드
+// 만약 반대를 누른 상태에서 추천을 누를 때 또는 그 반대의 경우도 고려한다.
+var vote_changed = function(old_vote, new_vote) {
+    var score = get_score();
+    if (new_vote !== old_vote) {
+        if (new_vote === 'Up') {
+            score += (old_vote === 'Down' ? 2:1)
+        } else if (new_vote === 'Down') {
+            score -= (old_vote === 'Up' ? 2:1) 
+        } else if (new_vote === '') {
+            score += (old_vote === 'Up' ? -1:1)
+        }
+    }
+    set_score(score)
+}
+// 위의 코드는 2가지의 일을한다. 
+// 1. old_vote와 new_vote가 수치값으로 해석 된다.
+// 2. 점수가 변경된다.
+// 다음의 코드로 변경될 수 있다.
+var vote_value = function(vote) {
+    if (vote === 'Up') {
+        return +1
+    }
+    if (vote === 'Down') {
+        return -1
+    }
+    return 0
+}
+
+var vote_changed = function(old_vote, new_vote) {
+    var score = get_score()
+
+    score -= vote_value(old_vote) // 이전 값을 제거한다.
+    score += vote_value(new_vote) // 새 값을 더한다.
+    set_score(score)
+}
+```
+
+```js
+// 객체에서 값을 추출한다.
+var func1 = () => {
+    const = { LocalityName, SubAdministrativeAreaName, AdministrativeAreaName, CountryName } = location_info
+    let city = 'Middle-of-Nowhere'
+
+    if (LocalityName) {
+        city = LocalityName
+    } else if (SubAdministrativeAreaName) {
+        city = SubAdministrativeAreaName
+    } else if (AdministrativeAreaName) {
+        city = AdministrativeAreaName
+    }
+
+    if (CountryName) {
+        city += `, ${CountryName}`
+    } else {
+        city += `, Planet Earth`
+    }
+
+    return city
+}
+/* 위의 함수가 하는 일들 
+1. location_info 딕셔너리에서 값들을 읽는다.
+2. '도시'의 값을 설정하기 위해서 정해진 선호도 순으로 값을 읽는다. 아무런 값도 찾을 수 없으면 "아무 곳도 아닌 곳"이라는 기본값을 설정한다.
+3. '나라'값을 설정한다. 값이 없으면 기본값인 '지구'로 설정한다.
+4. city를 변경한다.
+*/
+
+var func1 = () => {
+    // 1. location_info 딕셔너리에서 값들을 읽는다.
+    const = { LocalityName: town, SubAdministrativeAreaName: city, AdministrativeAreaName: state, CountryName: country } = location_info
+
+    // 기본값부터 시작하라.
+    var second_half = "Planer Earth";
+    if (country) {
+        second_half = country;
+    }
+    if (state && country === "USA") {
+        second_half = state;
+    }
+
+    // 탑 다운 형식으로 바꾼다.
+    var first_half = "Middle-of-Nowhere";
+    if (state && country !== "USA") {
+        first_half = state;
+    }
+    if (city) {
+        first_half = city;
+    }
+    if (town) {
+        first_half = town;
+    }
+
+    return first_half + ", " + second_half;
+}
+
+// 위에 코드 또한 두 가지 작업이 동시에 이뤄지고 있다.
+// 1. 변수의 리스트를 하나씩 읽어서, 존재하는 값 중 가장 선호되는 값을 선택한다.
+// 2. 나라가 'USA'인지 아닌지에 따라서 다른 리스트를 사용한다.
+
+var first_half, second_half;
+
+if (country === 'USA') {
+    first_half = town || city || 'Middle-of-Nowhere';
+    second_half = state || 'USA';
+} else {
+    first_half = town || city || state || 'Middle-of-Nowhere';
+    second_half = country || 'Planer Earth';
+}
+
+return first_half + ", " + second_half;
+```
