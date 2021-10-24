@@ -508,6 +508,8 @@ return first_half + ", " + second_half;
 
 1. 논리를 명확하게 설명하기(코드를 작성하기 전 말로 간결하게 정리해본다.)
 
+예제1.
+
 ```js
 var is_admin = is_admin_request();
 if (document) {
@@ -539,6 +541,9 @@ if (is_admin_request()) {
 
 // 비어 있는 본문 두 개를 포함하고 있어 조금 이상하지만 더 간결해졌다.
 ```
+
+예제2.
+![db_table](./db_table.jpg)
 
 ```py
 # 세 개의 테이블을 SQL의 JOIN 연산처럼 결합하는 프로그램을 만든다.
@@ -677,3 +682,181 @@ def AdvanceToMatchingTime(row_iter1, row_iter2, row_iter3):
     - 완숙한 라이브러리 안에 있는 코드는 한 줄 한 줄 엄격한 프로세스를 거쳐 살아남았다.
     - 코드가 줄어든다.
 1. 코딩 대신 명령어 활용하기
+
+## 14 테스트와 가독성
+1. 읽거나 유지보수하기 쉽게 테스트를 만들어라
+    - 테스트 코드가 크고 두렵게 느껴진다면...
+    - 코드를 수정하는 일이 두려워진다.
+    - 새로운 코드를 작성하면 그에 따르는 새로운 테스트를 작성하지 않는다.
+    - [내 의견] 아래의 예제를 읽고나면 CheckScoresBeforeAfter 에서부터는 헬퍼함수가 길어져 오버엔지니어링이 아닌가 하는 생각도 든다. 하지만 대부분의 라이브러리에서 간단한 인터페이스에 비해 정작 내부 로직은 복잡하다는 점, 아래의 "'완벽한' 입력을 사용하기 보다는 작은 테스트를 여러 개 사용"에서와 같이 입력이 많은 상황에서 간결하게 사용할 수 있다는 점이 좋기 때문에 참고하는 점이 좋지 않을까 하는 생각.
+```c++
+// 'docs'를 내림차순으로 정렬하고 점수가 0보다 작은 문서를 제거한다.
+// 다음의 코드를 테스트한다.
+void SortAndFilterDocs(vector<ScoredDocument>* docs)
+
+// 수정할 테스트 케이스
+void Test1() {
+    vector<ScoredDocument> docs;
+    docs.resize(5);
+    docs[0].url="http://example.com";
+    docs[0].score=-5.0;
+    docs[1].url="http://example.com";
+    docs[1].score=1;
+    docs[2].url="http://example.com";
+    docs[2].score=4;
+    docs[3].url="http://example.com";
+    docs[3].score=-99998.7;
+    docs[4].url="http://example.com";
+    docs[4].score=3.0;
+
+    SortAndFilterDocs(&docs);
+
+    assert(docs.size() == 3)
+    assert(docs[0].score == 4)
+    assert(docs[1].score == 3.0)
+    assert(docs[2].score == 1)
+}
+
+// 다음과 같은 수정할 점이 있다.
+// 1. 작업을 분리한다.(덜 중요한 사항은 숨겨 내용이 더 눈에 띄게 한다.)
+// 값을 설정하는 부분을 헬퍼 함수로 만든다.
+// 2. 새로운 테스트를 추가하기 쉽지 않다. 복붙은 코드가 더 길고 중복되게 한다.
+// 3. 테스트 실패 메시지가 별로 도움이 되지 않는다. 테스트에 실패하면 단지 Assertion failed: docs.size() == 3과 같은 내용을 출력한다. 테스트 실패에 사용된 값을 볼수 있어야 한다.
+// 4. 모든 것을 한꺼번에 테스트하려고 한다. 음수를 필터링하는 기능과 수를 정렬하는 기능을 동시에 테스트한다. 여러개의 테스트로 나누면 읽기 더 쉬울 것이다.
+// 5. 테스트 입력이 간단하지 않다. -99998.7과 같은 입력은 중요하지 않음에도 시선을 끈다. 더 간단한 음수값을 사용해도 충분하다.
+// 6. 테스트 입력값들이 코드 구석구석을 확인하지 않는다. 예를 들어 0인 경우는 다루지 않는다.
+// 7. 빈 값, 매우 큰 값, 중복된 값과 같이 비정상적인 값을 테스트하지 않는다.
+// 8. Test1()이라는 이름은 아무 의미 없다. 테스트되는 함수나 상황을 설명해야 한다.
+
+`void MakeScoredDoc(ScoredDocument* sd, double score, string url) {
+    sd->score = score;
+    sd->url = url;
+}
+
+void Test1() {
+    vector<ScoredDocument> docs;
+    docs.resize(5);
+    MakeScoredDoc(&docs[0], -5.0, "http://example.com")
+    MakeScoredDoc(&docs[1], 1, "http://example.com")
+    MakeScoredDoc(&docs[2], 4, "http://example.com")
+    MakeScoredDoc(&docs[3], -99998.7, "http://example.com")
+}
+
+// 더 리팩토링 할 수 있다. docs.resize(5), &docs[n], url 부분이다.
+void AddScoredDoc(vector<ScoredDocument>& docs, double score) {
+    ScoredDocument sd;
+    sd.score = score;
+    sd.url = "http://example.com";
+    docs.push_back(sd);
+}
+
+// 더 깔끔해졌지만, 점수가 매겨진 문서 중에 새로운 테스트를 추가해야 한다면, 여전히 코드를 복붙하는 과정을 되풀이해야 한다.
+void Test1() {
+    vector<ScoredDocument> docs;
+    AddScoredDoc(docs, -5.0)
+    AddScoredDoc(docs, 1)
+    AddScoredDoc(docs, -4)
+    AddScoredDoc(docs, -99998.7)
+
+    //...
+}
+
+/*
+다음과 같이 만들어 본다.
+[-5, 1, 4, -99998.7, 3]과 같은 점수를 가지는 문서 리스트가 있다.
+SortAndFilterDocs()를 호출한 다음에 문서는 [4,3,1]이라는 순서대로 비교해야한다.
+다음과 같이 구현한다.
+*/
+
+void Test1() {
+    CheckScoresBeforeAfter("-5, 1, 4, -99998.7", "4, 3, 1") 
+}
+
+void AddScoredDoc(vector<ScoredDocument>& docs, double score) {
+    ScoredDocument sd;
+    sd.score = score;
+    sd.url = "http://example.com";
+    docs.push_back(sd);
+}
+
+vector<ScoredDocument> ScoredDocsFromString(string scores) {
+    vector<ScoredDocument> docs;
+
+    replace(scores.begin(), scores.end(), ',', ' ');
+
+    // 빈 칸으로 구분된 숫자로 이루어진 문자열로부터 'docs'를 채운다.
+    istringstream stream(scores);
+    double score;
+    while (stream >> scores) {
+        AddScoredDoc(docs, score);
+    }
+
+    return docs;
+}
+
+string ScoredDocsToString(vector<ScoredDocument> docs) {
+    ostringstream stream;
+    for (int i = 0; i < docs.size(); i++) {
+        if (i > 0) stream << ", ";
+        stream << docs[i].score;
+    }
+
+    return stream.str()
+}
+
+void CheckScoresBeforeAfter(string input, string expected_output) {
+    vector<ScoredDocument> docs = ScoredDocsFromString(input);
+
+    SortAndFilterDocs(&docs);
+
+    string output = ScoredDocsToString(docs);
+    assert(output == expected_output)
+}
+```
+1. 읽기 편한 메시지 만들기
+더 정교한 버전의 테스트 라이브러리를 사용하면 더 자세한 내용을 담은 메시지를 볼 수 있다.(테스트 실패에 사용된 값을 볼수 있는)
+
+1. 좋은 테스트 입력값의 선택
+    - 좋은 입력값은 코드를 구석구석 철저하게 테스트한다. 하지만 간단해서 읽기도 쉬워야 한다.
+```c++
+// 이 테스트는 간단하지만 '음수인 점수를 필터링하는' SortAndFilterDocs()의 기능을 테스트하지 않는다.
+CheckScoresBeforeAfter("1,2,3", "3,2,1") 
+
+// 이러한 값은 필요 이상으로 복잡하다. 심지어 철저하게 코드를 테스트하지도 않는다.
+CheckScoresBeforeAfter("12301, -1231231, 23232, 34343") 
+
+// -99998.7는 단지 '임의의 음수'를 의미할 뿐이므로 그냥 -1로 적어도 상관없다. 만약 -99998.7이 '매우큰 음수'를 의미한다면 -1e100처럼 표현하여 더 의미가 뚜렷해 보이게 할 수 있다. 
+CheckScoresBeforeAfter("-5, 1, 4, -99998.7", "4, 3, 1") 
+
+// 커다란 입력값으로 테스트, 버퍼 오버런이나 다른 예상치 못한 종류의 버그를 드러낼 수도 있다.
+// 다만, 지나치게 크고 무시무시해 보이며, 코드에 효과적인 스트레스-테스트를 수행하지도 않는다.
+// 이 방법보다는 대량의 입력을 프로그램으로 생성하는 방법이 더 효율적이다.
+CheckScoresBeforeAfter("1, 2, 3, 4, 5, ... , n") 
+
+// Good, 참고: 내림차순으로 정렬하고 음수는 제거한다.
+CheckScoresBeforeAfter("1, 2, -1, 3", "3, 2, 1") 
+```
+
+1. '완벽한' 입력을 사용하기 보다는 작은 테스트를 여러 개 사용하는 방식이 더 쉽고 효과적이다.
+```c++
+CheckScoresBeforeAfter("1, 2, 3", "3, 2, 1") // 기본적인 정렬
+CheckScoresBeforeAfter("0, -0.1, -10", "0") // 0보다 작은 값을 모두 제거
+CheckScoresBeforeAfter("1, -2, 1, -2", "1, 1") // 중복은 문제되지 않는다.
+CheckScoresBeforeAfter("", "") // 빈 입력도 OK    
+```
+1. 테스트 함수에 이름 붙이기
+    - 다음과 같은 사항을 빠르게 파악할 수 있다면 큰 도움이 된다.
+    - 테스트되는 클래스, 테스트되는 함수, 테스트되는 상황이나 버그
+
+1. 테스트에 친숙한 개발
+    - 테스트를 고려한 코드 작성은 더 나은 코드를 작성하게 됨을 의미한다.
+
+![테스트하기 어려운 코드의 특징과 테스트하기 좋은 특징](./test_table.jpg)
+
+1. 지나친 테스트를 주의하라
+    - 테스트를 가능케 하려고 실제 코드의 가독성을 희생시킨다. 실제 코드에 지저분한 코드를 넣어야 한다면, 뭔가 잘못된 것이다.
+    - 100% 코드 테스트에 집착하는 일, 90%를 테스트하는 노력이 종종 나머지 10%를 테스트하는 비용보다 적은 노력이 들기도 한다. 또 그 10%는 버그로 인한 비용이 별로 높지 않기 때문에 굳이 테스트할 필요가 없을 수도 있다.
+    - 사실, 코드를 100% 테스트하는 일은 일어나지 않는다. 테스트되지 않은 버그가 있을 수도, 기능, 요구사항이 달라졌을 수도 있다.
+    - 버그가 야기하는 비용이 어느 정도인지에 따라서, 테스트 코드가 의미가 있을 수도 있고 없을수도 있다. 프로토타입에는 테스트 코드가 의미 없지만, 우주선 소프트웨어는 의미가 있다.
+    - 테스트 코드가 실제 제품 개발에 차질을 빚게 되는 일, 프로그래머들은 자신의 시간이 다른 일에 쓰이는 것이 더 나을수도 있다.
+    
