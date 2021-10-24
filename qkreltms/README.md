@@ -502,3 +502,149 @@ if (country === 'USA') {
 
 return first_half + ", " + second_half;
 ```
+
+## 12장 생각을 코드로 만들기
+1. 도움을 구하기 앞서 인형 또는 스스로에게 설명하라. 이 방법을 통해 해결책을 찾는 것에 도움이 될 수도 있다.
+
+1. 논리를 명확하게 설명하기(코드를 작성하기 전 말로 간결하게 정리해본다.)
+
+```js
+var is_admin = is_admin_request();
+if (document) {
+    if (!is_admin && (document['username'] != SESSION['username'])) {
+        return not_authorized()
+    } 
+} else {
+    if (!is_admin) {
+        return not_authorized()
+    }
+}
+/*
+위의 논리를 정리하면 사용이 허가되는 방법은 두 경우다.
+1. 관리자다.
+2. 만약 문서가 있다면 현재 문서를 소유하고 있다. 그렇지 않으면 허가되지 않는다.
+
+(!is_admin && (document['username'] != SESSION['username'])) 이 줄을 간단하게 하기위해 드모르간의 법칙을 사용하면
+
+is_admin || document['username'] == SESSION['username']
+*/
+
+if (is_admin_request()) {
+    // 허가
+} else if (document && document['username'] == SESSION['username']) {
+    // 허가
+} else {
+    return not_authorized()
+}
+
+// 비어 있는 본문 두 개를 포함하고 있어 조금 이상하지만 더 간결해졌다.
+```
+
+```py
+# 세 개의 테이블을 SQL의 JOIN 연산처럼 결합하는 프로그램을 만든다.
+# 1. 모든 행들이 time을 기준으로 순서대로 정렬되어 있다.
+# 2. 하지만 어떤 행들은 아예 존재하지 않는다.
+# 3. 존재하지 않는 행들을 무시하면서 세 개의 테이블에서 time 값이 동일한 행을 연결한다.
+# 4. time은 primary key이다. 
+
+def PrintStockTransactions():
+    stock_iter = db_read('SELECT time, ticker_symbol FROM ...")
+    price_iter = ...
+    num_shares_iter = ...
+
+    # 테이블의 모든 행을 동시에 순차적으로 반복한다.
+    while stock_iter and price_iter and num_shares_iter:
+        stock_time = stock_iter.time
+        price_time = prrice_iter.time
+        num_shares_time = num_shares_iter.time
+
+        # 만약 세 개의 행이 같은 time을 갖지 않으면 가장 오래된 행은 건너뛴다.
+        if stock_time != price_time or stock_time != num_shares_time:
+            # stock_time이 젤 낮다면 다음 행 값을 가져온다.
+            if stock_time <= price_time and stock_time <= num_shares_time:
+                stock_iter.NextRow()
+            # price_time도 위와 마찬가지
+            if price_time ...
+                price_iter.NextRow()
+            # 마찬가지...
+            if num_shares_time ...
+                num_sharees_iter.NextRow()
+            else
+                assert False # 찾기 불가능하다.
+            continue
+        assert stock_time == price_time == num_shares_time
+    
+    # 일치된 행을 출력한다.
+    print(...)
+
+'''
+뒤로 한걸음 물러나서 쉬운 말로 묘사해보자.
+1. 세 개 반복자를 병렬적으로 동시에 읽는다.
+2. 어느 행의 time이 일치하지 않으면, 앞으로 하나 더 나아가서 일치하게 한다.
+3. 일치된 행을 출력하고, 다시 앞으로 나아간다.
+4. 일치되는 행이 더 이상 없을 때까지 이를 반복한다.
+
+2번째 부분을 AdvanceToMatchingTime()이라는 함수로 분리해본다.
+'''
+def PrintStockTransactions():
+    stock_iter = db_read('SELECT time, ticker_symbol FROM ...")
+    price_iter = ...
+    num_shares_iter = ...
+
+    # 테이블의 모든 행을 동시에 순차적으로 반복한다.
+    while True:
+        time = AdvanceToMatchingTime(stock_iter, price_iter, num_shares_iter)
+        if time is None:
+            return
+    
+    # 일치된 행을 출력한다.
+    print(...)
+
+def AdvanceToMatchingTime(stock_iter, price_iter, num_shares_iter):
+    while stock_iter and price_iter and num_shares_iter:
+        stock_time = stock_iter.time
+        price_time = price_iter.time
+        num_shares_time = num_shares_iter.time
+
+        if stock_time != price_time or stock_time != num_shares_time:
+            # stock_time이 젤 낮다면 다음 행 값을 가져온다.
+            if stock_time <= price_time and stock_time <= num_shares_time:
+                stock_iter.NextRow()
+            # price_time도 위와 마찬가지
+            if price_time ...
+                price_iter.NextRow()
+            # 마찬가지...
+            if num_shares_time ...
+                num_sharees_iter.NextRow()
+            else
+                assert False # 찾기 불가능하다.
+            continue
+        assert stock_time == price_time == num_shares_time
+        return stock_time
+
+'''
+AdvanceToMatchingTime의 작업을 말로 풀어보면
+1. 각 테이블의 현재 행에서 time을 확인한다. 값이 모두 같으면 작업이 완료된 것이다. 그렇지 않으면 값이 '뒤처진' 행을 한 칸 전진시킨다.
+2. 행이 모두 동일한 time을 가질 때까지 혹은 반복자 중의 하나가 끝에 이를 때까지 작업을 반복한다.
+
+한 가지 주목할 부분은 이 셜명이 stock_iter나 우리가 해결하려는 문제와 관련된 어떠한 사항도 언급하지 않는다는 점이다. 따라서 변수명을 더 간단하고 일반적이게 바꿀 수 있다.
+'''
+def AdvanceToMatchingTime(row_iter1, row_iter2, row_iter3):
+    while row_iter1 and row_iter2 and row_iter3:
+        t1 = row_iter1.time
+        t2 = row_iter1.time
+        t3 = row_iter1.time
+
+        if t1 == t2 == t3:
+            return t1
+
+        tmax = max(t1, t2, t3)
+
+        # 어떤 행이 뒤쳐져 있으면 한 칸 앞으로 전진시킨다.
+        if t1 < tmax: row_iter1.NextRow()
+        if t2 < tmax: row_iter2.NextRow()
+        if t3 < tmax: row_iter3.NextRow()
+    return None # 일치되는 행이 없다.
+```
+
+1. 라이브러리를 적절하게 활용하면 간결한 코드를 작성할 수 있다.
